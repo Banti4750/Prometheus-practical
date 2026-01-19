@@ -20,8 +20,14 @@ const requestCounter = new prom_client_1.default.Counter({
     help: 'Total number of HTTP requests',
     labelNames: ['method', 'route', 'status_code']
 });
+// create a gauge metric
+const requestDurationGauge = new prom_client_1.default.Gauge({
+    name: 'active_requests',
+    help: 'Number of active requests',
+});
 const requestCountMiddleware = (req, res, next) => {
     const startTime = Date.now();
+    requestDurationGauge.inc();
     res.on('finish', () => {
         const endTime = Date.now();
         console.log(`Request took ${endTime - startTime}ms`);
@@ -31,18 +37,20 @@ const requestCountMiddleware = (req, res, next) => {
             route: req.route ? req.route.path : req.path,
             status_code: res.statusCode
         });
+        requestDurationGauge.dec();
     });
     next();
 };
 const app = (0, express_1.default)();
 app.use(express_1.default.json());
 app.use(requestCountMiddleware);
-app.get("/user", (req, res) => {
+app.get("/user", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    yield new Promise((resolve) => setTimeout(resolve, 1000));
     res.send({
         name: "John Doe",
         age: 25,
     });
-});
+}));
 app.post("/user", (req, res) => {
     const user = req.body;
     res.send(Object.assign(Object.assign({}, user), { id: 1 }));

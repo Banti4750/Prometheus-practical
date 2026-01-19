@@ -9,9 +9,16 @@ const requestCounter = new client.Counter({
     labelNames: ['method', 'route', 'status_code']
 });
 
+// create a gauge metric
+const requestDurationGauge = new client.Gauge({
+    name: 'active_requests',
+    help: 'Number of active requests',
+});
+
 
 const requestCountMiddleware = (req: Request, res: Response, next: NextFunction) => {
     const startTime = Date.now();
+    requestDurationGauge.inc();
 
     res.on('finish', () => {
         const endTime = Date.now();
@@ -23,8 +30,9 @@ const requestCountMiddleware = (req: Request, res: Response, next: NextFunction)
             route: req.route ? req.route.path : req.path,
             status_code: res.statusCode
         });
-    });
 
+        requestDurationGauge.dec();
+    });
     next();
 };
 
@@ -32,7 +40,10 @@ const app = express();
 
 app.use(express.json());
 app.use(requestCountMiddleware);
-app.get("/user", (req, res) => {
+app.get("/user", async(req, res) => {
+
+     await new Promise((resolve) => setTimeout(resolve, 1000));
+
     res.send({
         name: "John Doe",
         age: 25,
